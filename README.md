@@ -35,7 +35,17 @@ the same component-based React you'd recognize from before.
   ruler-style visual with a filled bar to that point.
 - **Bottom nav** is Log / Peptides / Supplements / Calculator, with a **☰
   menu** button replacing the old direct Settings tab — tap it for History,
-  Settings, or a one-tap **Log out** without going into Settings first.
+  **Re-order**, Settings, or a one-tap **Log out** without going into
+  Settings first.
+- **Star rating on finish** — marking a peptide vial or supplement
+  "finished" now opens a quick 1–5 star + optional note prompt first (or
+  tap Skip to bypass it). Supplements now have a real finished/active
+  lifecycle too, matching peptides, so they land in a "Finished" section
+  once you're done with them instead of just Pause/Delete.
+- **Re-order screen** — reorder links now live in their own destination
+  (via the ☰ menu) instead of inside Settings, listing every peptide and
+  supplement with its link and, if you rated it after finishing a previous
+  batch, its star rating right there for reference.
 - **Navigate any day** — ‹ › arrows step one day at a time, or tap the
   date (or the 📅 icon) for a full month calendar to jump anywhere. Past
   days are fully editable — same toggle/amount/Save screen you use daily.

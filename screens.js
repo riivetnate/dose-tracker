@@ -226,6 +226,18 @@ const TABS = [
   { id: 'calculator', label: 'Calculator', icon: RulerIcon },
 ];
 
+function ReorderIcon() {
+  return html`
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M4 12a8 8 0 0 1 13.66-5.66M20 12a8 8 0 0 1-13.66 5.66"
+        stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"
+      />
+      <path d="M18 3v4h-4M6 21v-4h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  `;
+}
+
 function MenuModal({ open, onClose, onSelect, onLogout }) {
   return html`
     <${Modal} open=${open} onClose=${onClose} title="Menu">
@@ -236,6 +248,13 @@ function MenuModal({ open, onClose, onSelect, onLogout }) {
         >
           <${ClockIcon} />
           <span className="text-sm font-medium">History</span>
+        </button>
+        <button
+          onClick=${() => onSelect('reorder')}
+          className="w-full flex items-center gap-3 text-left px-3 py-3 rounded-lg bg-ink-soft border border-ink-line"
+        >
+          <${ReorderIcon} />
+          <span className="text-sm font-medium">Re-order</span>
         </button>
         <button
           onClick=${() => onSelect('settings')}
@@ -257,7 +276,7 @@ function MenuModal({ open, onClose, onSelect, onLogout }) {
 
 export function NavBar({ active, onChange, onLogout }) {
   const [showMenu, setShowMenu] = useState(false);
-  const menuActive = active === 'history' || active === 'settings';
+  const menuActive = active === 'history' || active === 'reorder' || active === 'settings';
 
   function handleSelect(dest) {
     onChange(dest);
@@ -353,6 +372,65 @@ function dayShortSummary(daysOfWeek) {
 
 function blankBlendComponents() {
   return [{ name: '', mg: '' }, { name: '', mg: '' }, { name: '', mg: '' }, { name: '', mg: '' }];
+}
+
+// Shown right before marking a peptide or supplement finished, so you can
+// remember later whether that particular batch/brand worked well for you.
+function RatingModal({ open, onClose, itemName, onSubmit }) {
+  const [stars, setStars] = useState(0);
+  const [note, setNote] = useState('');
+
+  if (!open) return null;
+
+  function reset() {
+    setStars(0);
+    setNote('');
+  }
+  function handleSkip() {
+    onSubmit(null, '');
+    reset();
+  }
+  function handleSave() {
+    onSubmit(stars, note);
+    reset();
+  }
+
+  return html`
+    <${Modal} open=${open} onClose=${onClose} title="Rate before finishing">
+      <div className="space-y-4">
+        <p className="text-sm text-paper-dim">
+          How did <span className="font-medium text-paper">${itemName}</span> work for you? This shows up later if you reorder.
+        </p>
+        <div className="flex justify-center gap-2">
+          ${[1, 2, 3, 4, 5].map((n) => html`
+            <button key=${n} type="button" onClick=${() => setStars(n)} className="text-3xl leading-none text-amber-bright">
+              ${n <= stars ? '★' : '☆'}
+            </button>
+          `)}
+        </div>
+        <input
+          value=${note}
+          onChange=${(e) => setNote(e.target.value)}
+          placeholder="Notes (optional) — worked well, side effects, etc."
+          className="input"
+        />
+        <div className="flex gap-3">
+          <${Button} variant="ghost" className="flex-1" onClick=${handleSkip}>Skip<//>
+          <${Button} className="flex-1" onClick=${handleSave} disabled=${stars === 0}>Save & finish<//>
+        </div>
+      </div>
+    <//>
+  `;
+}
+
+// Plain, non-interactive star display for showing a saved rating elsewhere (e.g. the Re-order screen).
+function StarRating({ stars }) {
+  if (!stars) return null;
+  return html`
+    <span className="text-amber-bright text-sm">
+      ${[1, 2, 3, 4, 5].map((n) => (n <= stars ? '★' : '☆')).join('')}
+    </span>
+  `;
 }
 
 // Shared by AddPeptideModal (new vial) and PeptideCard (editing an existing
@@ -699,6 +777,7 @@ function SupplementLogList({ period, dateKey: dateKeyProp, readOnly }) {
   const scoped = items.filter(
     (s) =>
       s.active !== false &&
+      s.status !== 'finished' &&
       ((s.schedule || 'morning') === period || s.schedule === 'both') &&
       isScheduledOn(s.daysOfWeek, dk)
   );
@@ -865,11 +944,10 @@ const SYRINGE_SIZES = [
   { id: '0.5', label: '0.5 mL (50 units)', maxUnits: 50 },
   { id: '1.0', label: '1.0 mL (100 units)', maxUnits: 100 },
 ];
-const VIAL_MG_PRESETS = [5, 10, 15];
-const BAC_ML_PRESETS = [1, 2, 3, 5];
+const VIAL_MG_PRESETS = [10, 20, 30];
+const BAC_ML_PRESETS = [1, 2, 3];
 const DOSE_PRESETS = [
-  { v: 50, u: 'mcg' }, { v: 100, u: 'mcg' }, { v: 250, u: 'mcg' }, { v: 500, u: 'mcg' },
-  { v: 1, u: 'mg' }, { v: 2.5, u: 'mg' }, { v: 5, u: 'mg' }, { v: 10, u: 'mg' },
+  { v: 250, u: 'mcg' }, { v: 500, u: 'mcg' }, { v: 1, u: 'mg' },
 ];
 
 function CalculatorRuler({ maxUnits, value }) {
@@ -944,7 +1022,7 @@ export function CalculatorScreen() {
   const [vialMgOther, setVialMgOther] = useState('');
   const [bacMlChoice, setBacMlChoice] = useState(2);
   const [bacMlOther, setBacMlOther] = useState('');
-  const [doseChoice, setDoseChoice] = useState(4); // index into DOSE_PRESETS (4 = 1mg)
+  const [doseChoice, setDoseChoice] = useState(2); // index into DOSE_PRESETS (2 = 1mg)
   const [doseOtherValue, setDoseOtherValue] = useState('');
   const [doseOtherUnit, setDoseOtherUnit] = useState('mg');
 
@@ -1203,10 +1281,18 @@ function PeptideCard({ peptide: p, doses, uid, expanded, onToggleExpand }) {
   const [blendSavedFlash, setBlendSavedFlash] = useState(false);
   const [editPriorUsed, setEditPriorUsed] = useState(String(p.priorUsedMg || 0));
   const [priorUsedSavedFlash, setPriorUsedSavedFlash] = useState(false);
+  const [showRating, setShowRating] = useState(false);
 
   const left = remainingMg(p, doses.filter((d) => d.peptideId === p.id));
   const pct = p.vialAmountMg ? left / p.vialAmountMg : 0;
   const low = pct < 0.15;
+
+  async function finishWithRating(stars, note) {
+    const patch = { status: 'finished' };
+    if (stars) patch.rating = { stars, note: note || '', ratedAt: new Date() };
+    await updatePeptide(uid, p.id, patch);
+    setShowRating(false);
+  }
 
   async function saveSchedule() {
     await updatePeptide(uid, p.id, { schedule: editSchedule, daysOfWeek: editDays });
@@ -1310,7 +1396,7 @@ function PeptideCard({ peptide: p, doses, uid, expanded, onToggleExpand }) {
           </div>
 
           <div className="flex gap-2 pt-3">
-            <${Button} variant="ghost" className="flex-1" onClick=${() => updatePeptide(uid, p.id, { status: 'finished' })}>
+            <${Button} variant="ghost" className="flex-1" onClick=${() => setShowRating(true)}>
               Mark finished
             <//>
             <${Button} variant="danger" className="flex-1" onClick=${() => deletePeptide(uid, p.id)}>
@@ -1319,6 +1405,7 @@ function PeptideCard({ peptide: p, doses, uid, expanded, onToggleExpand }) {
           </div>
         </div>
       `}
+      <${RatingModal} open=${showRating} onClose=${() => setShowRating(false)} itemName=${p.name} onSubmit=${finishWithRating} />
     <//>
   `;
 }
@@ -1369,7 +1456,10 @@ export function PeptidesScreen() {
         ${finished.map((p) => html`
           <${Card} key=${p.id} className="mb-2 opacity-60">
             <div className="flex items-center justify-between">
-              <p className="font-medium">${p.name}</p>
+              <div>
+                <p className="font-medium">${p.name}</p>
+                ${p.rating?.stars && html`<${StarRating} stars=${p.rating.stars} />`}
+              </div>
               <button className="text-xs text-paper-faint" onClick=${() => deletePeptide(user.uid, p.id)}>
                 Remove
               </button>
@@ -1523,10 +1613,18 @@ function SupplementRow({ supplement: s, logs, uid, expanded, onToggleExpand }) {
   const [editContainerAmount, setEditContainerAmount] = useState(s.containerAmount != null ? String(s.containerAmount) : '');
   const [editPriorUsed, setEditPriorUsed] = useState(String(s.priorUsedAmount || 0));
   const [containerSavedFlash, setContainerSavedFlash] = useState(false);
+  const [showRating, setShowRating] = useState(false);
 
   const remaining = remainingSupplementAmount(s, (logs || []).filter((l) => l.supplementId === s.id));
   const pct = remaining != null && s.containerAmount ? remaining / s.containerAmount : null;
   const low = pct != null && pct < 0.15;
+
+  async function finishWithRating(stars, note) {
+    const patch = { status: 'finished' };
+    if (stars) patch.rating = { stars, note: note || '', ratedAt: new Date() };
+    await updateSupplement(uid, s.id, patch);
+    setShowRating(false);
+  }
 
   async function saveSchedule() {
     await updateSupplement(uid, s.id, { schedule: editSchedule, daysOfWeek: editDays });
@@ -1623,8 +1721,15 @@ function SupplementRow({ supplement: s, logs, uid, expanded, onToggleExpand }) {
             <//>
             <p className="text-xs text-paper-faint mt-1.5">Leave container size blank to stop tracking remaining amount for this one.</p>
           </div>
+
+          <div className="pt-3 mt-3 border-t border-ink-line">
+            <${Button} variant="ghost" className="w-full" onClick=${() => setShowRating(true)}>
+              Mark finished
+            <//>
+          </div>
         </div>
       `}
+      <${RatingModal} open=${showRating} onClose=${() => setShowRating(false)} itemName=${s.name} onSubmit=${finishWithRating} />
     <//>
   `;
 }
@@ -1643,6 +1748,9 @@ export function SupplementsScreen() {
     return () => { u1(); u2(); };
   }, [user]);
 
+  const active = supplements.filter((s) => s.status !== 'finished');
+  const finished = supplements.filter((s) => s.status === 'finished');
+
   return html`
     <div className="px-4 pt-4 pb-28 max-w-md mx-auto safe-top">
       <div className="flex items-center justify-between mb-6">
@@ -1650,11 +1758,11 @@ export function SupplementsScreen() {
         <${Button} variant="tealPrimary" onClick=${() => setShowAdd(true)}>+ Add<//>
       </div>
 
-      ${supplements.length === 0 && html`
+      ${active.length === 0 && html`
         <p className="text-paper-faint text-sm py-3">No supplements yet. Add your daily stack.</p>
       `}
 
-      ${supplements.map((s) => html`
+      ${active.map((s) => html`
         <${SupplementRow}
           key=${s.id}
           supplement=${s}
@@ -1664,6 +1772,23 @@ export function SupplementsScreen() {
           onToggleExpand=${() => setExpanded(expanded === s.id ? null : s.id)}
         />
       `)}
+
+      ${finished.length > 0 && html`
+        <h2 className="text-paper-dim text-xs font-semibold uppercase tracking-wide mt-6 mb-2.5">Finished</h2>
+        ${finished.map((s) => html`
+          <${Card} key=${s.id} className="mb-2 opacity-60">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">${s.name}</p>
+                ${s.rating?.stars && html`<${StarRating} stars=${s.rating.stars} />`}
+              </div>
+              <button className="text-xs text-paper-faint" onClick=${() => deleteSupplement(user.uid, s.id)}>
+                Remove
+              </button>
+            </div>
+          <//>
+        `)}
+      `}
 
       <${AddSupplementModal} open=${showAdd} onClose=${() => setShowAdd(false)} />
     </div>
@@ -2014,56 +2139,6 @@ export function HistoryScreen() {
 
 /* ===================== Settings screen ===================== */
 
-function AppUrlModal({ open, onClose }) {
-  const [copied, setCopied] = useState(false);
-  const url = `${window.location.origin}${window.location.pathname}`;
-  const canShare = typeof navigator !== 'undefined' && !!navigator.share;
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard API blocked in some contexts - URL is still visible/selectable below.
-    }
-  }
-
-  async function share() {
-    try {
-      await navigator.share({ title: 'Dose', url });
-    } catch {
-      // Person cancelled the share sheet.
-    }
-  }
-
-  return html`
-    <${Modal} open=${open} onClose=${onClose} title="App link">
-      <div className="space-y-4">
-        <p className="text-sm text-paper-dim">
-          This is the address this app is running from. Use it to open Dose
-          on another device, or send it to yourself.
-        </p>
-
-        <div className="bg-ink border border-ink-line rounded-lg px-3.5 py-3 font-mono text-sm break-all">
-          ${url}
-        </div>
-
-        <div className="flex gap-3">
-          <${Button} variant="ghost" className="flex-1" onClick=${copy}>
-            ${copied ? 'Copied ✓' : 'Copy link'}
-          <//>
-          ${canShare && html`
-            <${Button} className="flex-1" onClick=${share}>
-              Share…
-            <//>
-          `}
-        </div>
-      </div>
-    <//>
-  `;
-}
-
 function Section({ title, subtitle, children }) {
   return html`
     <div className="mb-7">
@@ -2088,7 +2163,10 @@ function ReorderRow({ item, tone, onSave }) {
 
   return html`
     <${Card} className="mb-2.5">
-      <p className="font-medium mb-2 truncate">${item.name}</p>
+      <div className="flex items-center justify-between mb-2">
+        <p className="font-medium truncate">${item.name}</p>
+        ${item.rating?.stars && html`<${StarRating} stars=${item.rating.stars} />`}
+      </div>
       <div className="flex items-center gap-2">
         <input
           type="url"
@@ -2117,6 +2195,46 @@ function ReorderRow({ item, tone, onSave }) {
         </a>
       `}
     <//>
+  `;
+}
+
+export function ReorderScreen() {
+  const { user } = useAuth();
+  const [peptides, setPeptides] = useState([]);
+  const [supplements, setSupplements] = useState([]);
+
+  useEffect(() => {
+    if (!user) return;
+    const u1 = listenPeptides(user.uid, setPeptides);
+    const u2 = listenSupplements(user.uid, setSupplements);
+    return () => { u1(); u2(); };
+  }, [user]);
+
+  return html`
+    <div className="px-4 pt-4 pb-28 max-w-md mx-auto safe-top">
+      <h1 className="font-display text-2xl font-semibold mb-1">Re-order</h1>
+      <p className="text-paper-faint text-sm mb-6">
+        Set a link for each item so you can jump straight to reordering it. Ratings from finished items show here too.
+      </p>
+
+      ${peptides.length === 0 && supplements.length === 0 && html`
+        <p className="text-paper-faint text-sm py-2">Add peptides or supplements first, then they'll show up here.</p>
+      `}
+
+      ${peptides.length > 0 && html`
+        <h2 className="text-paper-dim text-xs font-semibold uppercase tracking-wide mb-2.5">Peptides</h2>
+        ${peptides.map((p) => html`
+          <${ReorderRow} key=${p.id} item=${p} tone="amber" onSave=${(url) => updatePeptide(user.uid, p.id, { reorderUrl: url })} />
+        `)}
+      `}
+
+      ${supplements.length > 0 && html`
+        <h2 className="text-paper-dim text-xs font-semibold uppercase tracking-wide mt-6 mb-2.5">Supplements</h2>
+        ${supplements.map((s) => html`
+          <${ReorderRow} key=${s.id} item=${s} tone="teal" onSave=${(url) => updateSupplement(user.uid, s.id, { reorderUrl: url })} />
+        `)}
+      `}
+    </div>
   `;
 }
 
@@ -2190,17 +2308,7 @@ function DangerZoneModal({ open, onClose, uid }) {
 
 export function SettingsScreen() {
   const { user, logout } = useAuth();
-  const [peptides, setPeptides] = useState([]);
-  const [supplements, setSupplements] = useState([]);
-  const [showUrl, setShowUrl] = useState(false);
   const [showDangerZone, setShowDangerZone] = useState(false);
-
-  useEffect(() => {
-    if (!user) return;
-    const u1 = listenPeptides(user.uid, setPeptides);
-    const u2 = listenSupplements(user.uid, setSupplements);
-    return () => { u1(); u2(); };
-  }, [user]);
 
   return html`
     <div className="px-4 pt-4 pb-28 max-w-md mx-auto safe-top">
@@ -2216,28 +2324,6 @@ export function SettingsScreen() {
         <//>
       <//>
 
-      <${Section} title="App">
-        <${Card} className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">App link</p>
-            <p className="text-xs text-paper-faint">View or share the URL this app is running from</p>
-          </div>
-          <${Button} variant="ghost" onClick=${() => setShowUrl(true)}>Show<//>
-        <//>
-      <//>
-
-      <${Section} title="Reorder links" subtitle="Set a link for each item so you can jump straight to reordering it.">
-        ${peptides.length === 0 && supplements.length === 0 && html`
-          <p className="text-paper-faint text-sm py-2">Add peptides or supplements first, then their reorder links will show up here.</p>
-        `}
-        ${peptides.map((p) => html`
-          <${ReorderRow} key=${p.id} item=${p} tone="amber" onSave=${(url) => updatePeptide(user.uid, p.id, { reorderUrl: url })} />
-        `)}
-        ${supplements.map((s) => html`
-          <${ReorderRow} key=${s.id} item=${s} tone="teal" onSave=${(url) => updateSupplement(user.uid, s.id, { reorderUrl: url })} />
-        `)}
-      <//>
-
       <${Section} title="Danger zone">
         <${Card} onClick=${() => setShowDangerZone(true)} className="flex items-center justify-between">
           <div>
@@ -2248,7 +2334,6 @@ export function SettingsScreen() {
         <//>
       <//>
 
-      <${AppUrlModal} open=${showUrl} onClose=${() => setShowUrl(false)} />
       <${DangerZoneModal} open=${showDangerZone} onClose=${() => setShowDangerZone(false)} uid=${user.uid} />
     </div>
   `;

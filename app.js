@@ -1,6 +1,6 @@
 import { html } from './react-setup.js';
 import { AuthProvider, useAuth } from './lib.js';
-import { Login, NavBar, LogScreen, PeptidesScreen, SupplementsScreen, HistoryScreen, SettingsScreen, CalculatorScreen } from './screens.js';
+import { Login, NavBar, LogScreen, PeptidesScreen, SupplementsScreen, HistoryScreen, SettingsScreen, CalculatorScreen, ReorderScreen } from './screens.js';
 
 const { useState } = React;
 
@@ -21,6 +21,7 @@ function App() {
       ${tab === 'supplements' && html`<${SupplementsScreen} />`}
       ${tab === 'calculator' && html`<${CalculatorScreen} />`}
       ${tab === 'history' && html`<${HistoryScreen} />`}
+      ${tab === 'reorder' && html`<${ReorderScreen} />`}
       ${tab === 'settings' && html`<${SettingsScreen} />`}
       <${NavBar} active=${tab} onChange=${setTab} onLogout=${logout} />
     </div>

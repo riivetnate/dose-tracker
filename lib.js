@@ -320,6 +320,7 @@ export function addSupplement(uid, data) {
     containerAmount: data.containerAmount ? Number(data.containerAmount) : null,
     priorUsedAmount: data.priorUsedAmount ? Number(data.priorUsedAmount) : 0,
     active: true,
+    status: 'active',
     notes: data.notes || '',
     createdAt: serverTimestamp(),
   });
