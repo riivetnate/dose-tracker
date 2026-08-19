@@ -28,10 +28,16 @@ the same component-based React you'd recognize from before.
 - **Log** — a date + a small daily quote up top, then Morning / Evening
   tabs, then Supplements / Peptides / Daily Weight sub-tabs. Toggle an
   item, type an amount, hit **Save**. **Clear all** resets before you save.
-- **Dose Calculator** — a standalone tab: pick a syringe size (0.3/0.5/1.0mL
-  — all standard U-100, so the size only sets the max units the barrel
-  holds, not the math), vial mg, BAC water, and desired dose (presets or
-  your own numbers), and it shows exactly how many units to draw, plus a
+  Every peptide entry shows a live mcg/mg conversion line right under it
+  as soon as you toggle it on and type an amount — whatever unit you log
+  in (units, mg, or mcg), it confirms the actual dose in plain terms
+  (blends show each component's own amount; single peptides show one
+  converted line, e.g. "500.0mcg BPC-157").
+- **Dose Calculator** — a standalone tab: pick a syringe size (30u/50u/100u,
+  one row — all standard U-100, so the size only sets the max units the
+  barrel holds, not the math), vial mg (10/20/30 presets), BAC water
+  (1/2/3mL), and desired dose (250mcg/500mcg/1mg presets or your own
+  numbers), and it shows exactly how many units to draw, plus a
   ruler-style visual with a filled bar to that point.
 - **Bottom nav** is Log / Peptides / Supplements / Calculator, with a **☰
   menu** button replacing the old direct Settings tab — tap it for History,

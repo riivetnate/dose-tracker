@@ -339,6 +339,23 @@ function peptideUnitLabel(u) {
   return map[u] || u || 'mcg';
 }
 
+// Converts a single (non-blend) peptide's logged amount+unit into mcg, so
+// it can be shown as a plain-language confirmation under every entry -
+// e.g. typing "10" units shows "500.0mcg BPC-157" right underneath.
+function peptideDoseToMcg(peptide, amount, unit) {
+  const n = Number(amount);
+  if (!n) return 0;
+  if (unit === 'mcg') return n;
+  if (unit === 'mg') return n * 1000;
+  if (unit === 'units') return n * mcgPerUnit(peptide);
+  if (unit === 'ml') return n * concentration(peptide) * 1000;
+  return 0;
+}
+function formatMcgOrMg(mcg) {
+  if (mcg >= 1000) return `${(mcg / 1000).toFixed(2)}mg`;
+  return `${mcg.toFixed(1)}mcg`;
+}
+
 function supplementUnitLabel(u) {
   const map = { mg: 'mg', mcg: 'mcg', g: 'g', IU: "IU's", capsule: 'caps' };
   return map[u] || u;
@@ -717,7 +734,9 @@ function PeptideLogList({ period, dateKey: dateKeyProp, readOnly }) {
     <div>
       ${scoped.map((p) => {
         const row = draft[p.id] || { taken: false, amount: '' };
-        const breakdown = row.taken && row.amount !== '' ? blendDoseBreakdown(p, row.amount, p.logUnit || 'mcg') : null;
+        const hasEntry = row.taken && row.amount !== '';
+        const breakdown = hasEntry && p.isBlend ? blendDoseBreakdown(p, row.amount, p.logUnit || 'mcg') : null;
+        const singleDoseMcg = hasEntry && !p.isBlend ? peptideDoseToMcg(p, row.amount, p.logUnit || 'mcg') : null;
         return html`
           <${Card} key=${p.id} className="mb-2.5">
             <div className="flex items-center gap-3">
@@ -737,6 +756,11 @@ function PeptideLogList({ period, dateKey: dateKeyProp, readOnly }) {
             ${breakdown && html`
               <p className="text-xs text-teal-bright font-mono mt-2 pl-1">
                 ${breakdown.map((c) => `${c.mg.toFixed(2)}mg ${c.name}`).join(' · ')}
+              </p>
+            `}
+            ${singleDoseMcg != null && html`
+              <p className="text-xs text-teal-bright font-mono mt-2 pl-1">
+                ${formatMcgOrMg(singleDoseMcg)} ${p.name}
               </p>
             `}
           <//>
@@ -940,9 +964,9 @@ function WeightChart({ entries }) {
 /* ===================== Calculator screen ===================== */
 
 const SYRINGE_SIZES = [
-  { id: '0.3', label: '0.3 mL (30 units)', maxUnits: 30 },
-  { id: '0.5', label: '0.5 mL (50 units)', maxUnits: 50 },
-  { id: '1.0', label: '1.0 mL (100 units)', maxUnits: 100 },
+  { id: '0.3', label: '30u', maxUnits: 30 },
+  { id: '0.5', label: '50u', maxUnits: 50 },
+  { id: '1.0', label: '100u', maxUnits: 100 },
 ];
 const VIAL_MG_PRESETS = [10, 20, 30];
 const BAC_ML_PRESETS = [1, 2, 3];
@@ -1041,13 +1065,13 @@ export function CalculatorScreen() {
       <p className="text-paper-faint text-sm mb-6">Figure out how many units to draw for a target dose.</p>
 
       <${Section} title="Syringe size">
-        <div className="grid grid-cols-1 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           ${SYRINGE_SIZES.map((sz) => html`
             <button
               key=${sz.id}
               type="button"
               onClick=${() => setSyringeId(sz.id)}
-              className=${`py-2.5 rounded-lg text-sm font-medium border text-left px-3 ${syringeId === sz.id ? 'bg-amber text-ink border-amber' : 'bg-ink-soft text-paper-dim border-ink-line'}`}
+              className=${`py-2.5 rounded-lg text-sm font-medium border text-center ${syringeId === sz.id ? 'bg-amber text-ink border-amber' : 'bg-ink-soft text-paper-dim border-ink-line'}`}
             >
               ${sz.label}
             </button>
