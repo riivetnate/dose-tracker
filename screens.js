@@ -664,7 +664,7 @@ function PeptideLogList({ period, dateKey: dateKeyProp, readOnly }) {
 
   const scoped = items.filter(
     (p) =>
-      p.status !== 'finished' &&
+      (p.status !== 'finished' || (p.finishedDateKey && dk <= p.finishedDateKey)) &&
       ((p.schedule || 'morning') === period || p.schedule === 'both') &&
       isScheduledOn(p.daysOfWeek, dk)
   );
@@ -801,7 +801,7 @@ function SupplementLogList({ period, dateKey: dateKeyProp, readOnly }) {
   const scoped = items.filter(
     (s) =>
       s.active !== false &&
-      s.status !== 'finished' &&
+      (s.status !== 'finished' || (s.finishedDateKey && dk <= s.finishedDateKey)) &&
       ((s.schedule || 'morning') === period || s.schedule === 'both') &&
       isScheduledOn(s.daysOfWeek, dk)
   );
@@ -1046,6 +1046,8 @@ export function CalculatorScreen() {
   const [vialMgOther, setVialMgOther] = useState('');
   const [bacMlChoice, setBacMlChoice] = useState(2);
   const [bacMlOther, setBacMlOther] = useState('');
+  const [isBlend, setIsBlend] = useState(false);
+  const [blendComponents, setBlendComponents] = useState(blankBlendComponents());
   const [doseChoice, setDoseChoice] = useState(2); // index into DOSE_PRESETS (2 = 1mg)
   const [doseOtherValue, setDoseOtherValue] = useState('');
   const [doseOtherUnit, setDoseOtherUnit] = useState('mg');
@@ -1058,6 +1060,12 @@ export function CalculatorScreen() {
 
   const units = calculatorUnits(vialMg, bacMl, doseMg);
   const exceeds = units != null && units > syringe.maxUnits;
+
+  const filteredBlend = blendComponents.filter((c) => c.name.trim() && c.mg !== '');
+  const pseudoPeptide = { vialAmountMg: vialMg, bacWaterMl: bacMl, unitsPerMl: 100, isBlend, blendComponents: filteredBlend };
+  const blendBreakdown = isBlend && filteredBlend.length > 0 && units != null
+    ? blendDoseBreakdown(pseudoPeptide, doseMg, 'mg')
+    : null;
 
   return html`
     <div className="px-4 pt-4 pb-28 max-w-md mx-auto safe-top">
@@ -1101,6 +1109,10 @@ export function CalculatorScreen() {
           formatLabel=${(p) => `${p}mL`}
           placeholder="Enter BAC water amount (mL)"
         />
+      <//>
+
+      <${Section} title="Blend (optional)">
+        <${BlendEditor} isBlend=${isBlend} setIsBlend=${setIsBlend} components=${blendComponents} setComponents=${setBlendComponents} />
       <//>
 
       <${Section} title="Desired dose">
@@ -1156,6 +1168,14 @@ export function CalculatorScreen() {
             </p>
           `}
           <${CalculatorRuler} maxUnits=${syringe.maxUnits} value=${Math.min(units, syringe.maxUnits)} />
+          ${blendBreakdown && html`
+            <div className="mt-4 pt-4 border-t border-ink-line space-y-1.5">
+              <p className="text-xs text-paper-dim uppercase tracking-wide mb-1.5">That draw breaks down to</p>
+              ${blendBreakdown.map((c, i) => html`
+                <p key=${i} className="text-sm font-mono text-teal-bright">${c.mg.toFixed(2)}mg ${c.name}</p>
+              `)}
+            </div>
+          `}
         <//>
       `}
     </div>
@@ -1312,7 +1332,7 @@ function PeptideCard({ peptide: p, doses, uid, expanded, onToggleExpand }) {
   const low = pct < 0.15;
 
   async function finishWithRating(stars, note) {
-    const patch = { status: 'finished' };
+    const patch = { status: 'finished', finishedDateKey: todayKey() };
     if (stars) patch.rating = { stars, note: note || '', ratedAt: new Date() };
     await updatePeptide(uid, p.id, patch);
     setShowRating(false);
@@ -1484,9 +1504,17 @@ export function PeptidesScreen() {
                 <p className="font-medium">${p.name}</p>
                 ${p.rating?.stars && html`<${StarRating} stars=${p.rating.stars} />`}
               </div>
-              <button className="text-xs text-paper-faint" onClick=${() => deletePeptide(user.uid, p.id)}>
-                Remove
-              </button>
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  className="text-xs text-amber-bright"
+                  onClick=${() => updatePeptide(user.uid, p.id, { status: 'active', finishedDateKey: null })}
+                >
+                  Reactivate
+                </button>
+                <button className="text-xs text-paper-faint" onClick=${() => deletePeptide(user.uid, p.id)}>
+                  Remove
+                </button>
+              </div>
             </div>
           <//>
         `)}
@@ -1644,7 +1672,7 @@ function SupplementRow({ supplement: s, logs, uid, expanded, onToggleExpand }) {
   const low = pct != null && pct < 0.15;
 
   async function finishWithRating(stars, note) {
-    const patch = { status: 'finished' };
+    const patch = { status: 'finished', finishedDateKey: todayKey() };
     if (stars) patch.rating = { stars, note: note || '', ratedAt: new Date() };
     await updateSupplement(uid, s.id, patch);
     setShowRating(false);
@@ -1806,9 +1834,17 @@ export function SupplementsScreen() {
                 <p className="font-medium">${s.name}</p>
                 ${s.rating?.stars && html`<${StarRating} stars=${s.rating.stars} />`}
               </div>
-              <button className="text-xs text-paper-faint" onClick=${() => deleteSupplement(user.uid, s.id)}>
-                Remove
-              </button>
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  className="text-xs text-teal-bright"
+                  onClick=${() => updateSupplement(user.uid, s.id, { status: 'active', finishedDateKey: null })}
+                >
+                  Reactivate
+                </button>
+                <button className="text-xs text-paper-faint" onClick=${() => deleteSupplement(user.uid, s.id)}>
+                  Remove
+                </button>
+              </div>
             </div>
           <//>
         `)}

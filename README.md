@@ -38,7 +38,11 @@ the same component-based React you'd recognize from before.
   barrel holds, not the math), vial mg (10/20/30 presets), BAC water
   (1/2/3mL), and desired dose (250mcg/500mcg/1mg presets or your own
   numbers), and it shows exactly how many units to draw, plus a
-  ruler-style visual with a filled bar to that point.
+  ruler-style visual with a filled bar to that point. Also handles blends —
+  check "This is a blend," enter up to 4 peptides with their own mg
+  amounts (e.g. an 80mg Klow blend: 50 GHK-Cu, 10 BPC-157, 10 TB-500,
+  10 KPV), and the result shows exactly how much of each one that draw
+  delivers, alongside the total units.
 - **Bottom nav** is Log / Peptides / Supplements / Calculator, with a **☰
   menu** button replacing the old direct Settings tab — tap it for History,
   **Re-order**, Settings, or a one-tap **Log out** without going into
@@ -47,7 +51,12 @@ the same component-based React you'd recognize from before.
   "finished" now opens a quick 1–5 star + optional note prompt first (or
   tap Skip to bypass it). Supplements now have a real finished/active
   lifecycle too, matching peptides, so they land in a "Finished" section
-  once you're done with them instead of just Pause/Delete.
+  once you're done with them instead of just Pause/Delete. Finishing
+  something only removes it from *future* days — it still shows normally
+  on today and any past day, so you don't lose it from days it was
+  actually part of your regimen. The Finished section also has a
+  **Reactivate** button next to Remove, in case you finish something by
+  mistake or change your mind.
 - **Re-order screen** — reorder links now live in their own destination
   (via the ☰ menu) instead of inside Settings, listing every peptide and
   supplement with its link and, if you rated it after finishing a previous
